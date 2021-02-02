@@ -1,0 +1,6 @@
+Bundle-Name: NordicID Native Serial Transport
+Bundle-Version: 1.9.1.3
+Implementation-Version: 1.9.1.3
+Bundle-ManifestVersion: 2
+Bundle-Vendor: HARTING IT_SD
+Fragment-Host: com.nordicid.nativeserial

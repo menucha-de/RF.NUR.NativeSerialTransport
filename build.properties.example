@@ -1,0 +1,7 @@
+# Create a copy "build.properties" of this file and change the properties
+
+# Ivy repository URL
+ivy.url=http://{Host}/ivy
+
+# the target platform [linux-arm|linux-amd64]
+platform=linux-amd64

@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="com.nordicid.nativeserial" default="publish" xmlns:ivy="antlib:org.apache.ivy.ant">
+
+	<property file="${basedir}/build.properties" />
+	<property name="basename" value="${ant.project.name}" />
+	<property name="resources.dir" location="${basedir}/resources" />
+	<property name="build.dir" location="${basedir}/target" />
+	<property name="lib.dir" location="${basedir}/lib" />
+	<property file="${resources.dir}/MANIFEST.MF" prefix="manifest" />
+
+	<property name="javac.version" value="8" />
+
+	<!-- Checks if the build.properties file exists prints an error message if the file does not exist -->
+	<target name="check.build.properties">
+		<condition property="ivy.resolver" else="local">
+			<isset property="ivy.resolver" />
+		</condition>
+
+		<condition property="arch" value="amd64">
+			<matches pattern="^linux-amd64$" string="${platform}" />
+		</condition>
+
+		<condition property="processor" value="amd64">
+			<matches pattern="^linux-amd64$" string="${platform}" />
+		</condition>
+
+		<condition property="arch" value="armhf">
+			<matches pattern="^linux-arm$" string="${platform}" />
+		</condition>
+
+		<condition property="processor" value="arm">
+			<matches pattern="^linux-arm$" string="${platform}" />
+		</condition>
+
+		<condition property="cc" value="arm-linux-gnueabihf-gcc" else="gcc">
+			<matches pattern="^arm$" string="${processor}" />
+		</condition>
+
+		<property name="java_home" value="/usr/lib/jvm/default-java" />
+
+		<!--
+		<exec executable="/bin/bash" outputproperty="java_home">
+			<arg value="-c" />
+			<arg value="ls -dvr /usr/lib/jvm/*${arch} 2> /dev/null | head -n1" />
+		</exec>
+		<fail message="Failed to detect Java home directory at '/usr/lib/jvm/*${arch}'!">
+			<condition>
+				<equals arg1="${java_home}" arg2=""/>
+			</condition>
+		</fail>
+		-->
+
+		<fail message="Missing property 'ivy.url'. Does 'build.properties' file exist?" unless="ivy.url" />
+		<fail message="Missing property 'platform'. Does 'build.properties' file exist?" unless="platform" />
+	</target>
+
+	<target name="clean" description="Cleans the project">
+		<delete dir="${build.dir}" />
+		<delete dir="${lib.dir}" />
+		<exec executable="make" failonerror="true">
+			<arg line="clean" />
+		</exec>
+		<ivy:cleancache />
+	</target>
+
+	<target name="retrieve" depends="check.build.properties" description="">
+		<ivy:retrieve pattern="lib/[artifact].[ext]" log="quiet" />
+	</target>
+
+	<!-- Compiles the java source files -->
+	<target name="compile" depends="retrieve">
+		<mkdir dir="${build.dir}/include" />
+		<mkdir dir="${build.dir}/classes" />
+		<mkdir dir="${build.dir}/src" />
+		<unjar src="${lib.dir}/NativeSerialTransport-sources.jar" dest="${build.dir}/src">
+			<patternset>
+				<include name="**/*.java"/>
+			</patternset>
+		</unjar>
+		<javac srcdir="${build.dir}/src" destdir="${build.dir}/classes" release="${javac.version}" debug="${javac.debug}" includeantruntime="false" nativeheaderdir="${build.dir}/include">
+			<classpath>
+				<fileset dir="${lib.dir}" />
+			</classpath>
+		</javac>
+		<exec executable="make" failonerror="true">
+			<env key="CC" value="${cc}" />
+			<env key="ARCH" value="${arch}" />
+			<env key="JAVA_HOME" value="${java_home}" />
+		</exec>
+	</target>
+
+	<!-- Packages the classes into a JAR file -->
+	<target name="jar" depends="compile" description="Creates the binary JAR">
+		<!-- create binary JAR -->
+		<jar jarfile="${build.dir}/${basename}-${platform}.jar" manifest="${resources.dir}/MANIFEST.MF">
+			<manifest>
+				<attribute name="Bundle-SymbolicName" value="${basename}-${platform}" />
+				<attribute name="Bundle-NativeCode" value="libNativeSerialTransport.so;osname=linux;processor=${processor}" />
+			</manifest>
+			<fileset file="${build.dir}/libNativeSerialTransport.so" />
+		</jar>
+	</target>
+
+	<target name="publish" depends="jar">
+		<ivy:resolve file="${resources.dir}/ivy.xml" />
+
+		<ivy:publish resolver="${ivy.resolver}" pubrevision="${manifest.Implementation-Version}" status="integration" overwrite="true">
+			<artifacts pattern="${build.dir}/[artifact].[ext]" />
+		</ivy:publish>
+	</target>
+</project>
